@@ -73,6 +73,7 @@
   .badge.confirmed { background: rgba(76,175,114,0.16); color: var(--green); }
   .badge.rejected { background: rgba(229,97,75,0.15); color: var(--red); }
   .badge.arrived { background: rgba(91,155,213,0.16); color: var(--blue); }
+  .badge.done { background: rgba(154,151,140,0.18); color: var(--muted); }
 
   .bk-info { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; font-size: 14px; margin-bottom: 14px; }
   .bk-info .k { color: var(--muted); font-size: 12px; }
@@ -87,6 +88,8 @@
   .act-confirm { background: var(--green); color: #fff; }
   .act-reject { background: var(--surface2); color: var(--red); border: 1.5px solid rgba(229,97,75,0.3); }
   .act-arrived { background: var(--blue); color: #fff; }
+  .act-done { background: var(--ink); color: var(--bg); }
+  .done-label { text-align: center; padding: 11px; font-size: 14px; font-weight: 700; color: var(--muted); width: 100%; }
   .act:disabled { opacity: 0.4; cursor: default; }
 
   .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
@@ -221,7 +224,7 @@ async function addSlot() {
 }
 
 // ---------- RENDER ----------
-const STATUS_LABEL = { pending:"รอยืนยัน", confirmed:"ยืนยันแล้ว", rejected:"ปฏิเสธ", arrived:"มาแล้ว" };
+const STATUS_LABEL = { pending:"รอยืนยัน", confirmed:"ยืนยันแล้ว", rejected:"ปฏิเสธ", arrived:"ลูกค้ามาแล้ว", done:"เสร็จสิ้น" };
 
 function render() {
   const tabs = `
@@ -249,13 +252,36 @@ function switchTab(t) { view.tab = t; render(); }
 async function changeDate(v) { view.date = v; await loadAll(); render(); }
 function setFilter(f) { view.filter = f; render(); }
 
+function renderActions(b) {
+  const id = b.id;
+  switch (b.status) {
+    case "pending":
+      return `
+        <button class="act act-confirm" onclick="setStatus('${id}','confirmed')">ยืนยัน</button>
+        <button class="act act-reject" onclick="setStatus('${id}','rejected')">ปฏิเสธ</button>`;
+    case "confirmed":
+      return `
+        <button class="act act-arrived" onclick="setStatus('${id}','arrived')">ลูกค้ามาแล้ว</button>
+        <button class="act act-reject" onclick="setStatus('${id}','rejected')">ยกเลิก</button>`;
+    case "arrived":
+      return `
+        <button class="act act-done" onclick="setStatus('${id}','done')">เสร็จสิ้น</button>`;
+    case "done":
+      return `<div class="done-label">✓ เสร็จสิ้นแล้ว</div>`;
+    case "rejected":
+      return `<div class="done-label" style="color:var(--red)">ยกเลิก/ปฏิเสธแล้ว</div>`;
+    default:
+      return "";
+  }
+}
+
 function renderBookings() {
   const counts = { all: view.bookings.length };
-  ["pending","confirmed","arrived","rejected"].forEach(s => counts[s] = view.bookings.filter(b=>b.status===s).length);
+  ["pending","confirmed","arrived","done","rejected"].forEach(s => counts[s] = view.bookings.filter(b=>b.status===s).length);
   let list = view.bookings;
   if (view.filter !== "all") list = list.filter(b => b.status === view.filter);
 
-  const chips = ["all","pending","confirmed","arrived","rejected"].map(f => {
+  const chips = ["all","pending","confirmed","arrived","done","rejected"].map(f => {
     const lbl = f==="all" ? "ทั้งหมด" : STATUS_LABEL[f];
     return `<button class="chip ${view.filter===f?'active':''}" onclick="setFilter('${f}')">${lbl} ${counts[f]}</button>`;
   }).join("");
@@ -276,11 +302,7 @@ function renderBookings() {
           <div><div class="k">ลูกค้า</div><div class="v">${b.customer_name}</div></div>
           <div><div class="k">ติดต่อ</div><div class="v">${b.contact||"—"}</div></div>
         </div>
-        <div class="actions">
-          <button class="act act-confirm" ${b.status==='confirmed'?'disabled':''} onclick="setStatus('${b.id}','confirmed')">ยืนยัน</button>
-          <button class="act act-arrived" ${b.status==='arrived'?'disabled':''} onclick="setStatus('${b.id}','arrived')">มาแล้ว</button>
-          <button class="act act-reject" ${b.status==='rejected'?'disabled':''} onclick="setStatus('${b.id}','rejected')">ปฏิเสธ</button>
-        </div>
+        <div class="actions">${renderActions(b)}</div>
       </div>`;
   }).join("");
 
