@@ -136,7 +136,7 @@
 // CONFIG
 // ============================================
 const SUPABASE_URL = "https://yknjoaaaazyoefhqztyi.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlrbmpvYWFhYXp5b2VmaHF6dHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzNjcyNDcsImV4cCI6MjA5Njk0MzI0N30.pnDPTkJnztVoqv5mx-t40lzRv-MvevnWwz7jdebqE4E";
+const SUPABASE_ANON_KEY = "ใส่_anon_key_ของคุณตรงนี้";
 const ADMIN_PASSWORD = "myqueue2024";   // <-- เปลี่ยนรหัสนี้เป็นของคุณเอง
 // ============================================
 
@@ -265,7 +265,8 @@ function renderActions(b) {
         <button class="act act-reject" onclick="setStatus('${id}','rejected')">ยกเลิก</button>`;
     case "arrived":
       return `
-        <button class="act act-done" onclick="setStatus('${id}','done')">เสร็จสิ้น</button>`;
+        <button class="act act-done" onclick="setStatus('${id}','done')">เสร็จสิ้น</button>
+        <button class="act act-reject" onclick="setStatus('${id}','rejected')">ยกเลิก</button>`;
     case "done":
       return `<div class="done-label">✓ เสร็จสิ้นแล้ว</div>`;
     case "rejected":
