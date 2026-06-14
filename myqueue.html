@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>คิวของฉัน · MyQueue</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #faf8f3;
+    --card: #ffffff;
+    --ink: #1f1d1a;
+    --muted: #8b8780;
+    --line: #ebe7df;
+    --brand: #06c755;
+    --brand-deep: #04a548;
+    --amber: #c2820c;
+    --amber-bg: #fdf3e0;
+    --green: #2f8f56;
+    --green-bg: #e6f5ec;
+    --blue: #3b7dc4;
+    --blue-bg: #e8f1fa;
+    --red: #c0492f;
+    --red-bg: #fbeae6;
+    --gray-bg: #f0ede7;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, "Helvetica Neue", "Sukhumvit Set", "Noto Sans Thai", sans-serif;
+    background: var(--bg); color: var(--ink); line-height: 1.55; padding-bottom: 40px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .topbar {
+    background: var(--card); border-bottom: 1px solid var(--line);
+    padding: 16px 20px; position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .topbar .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--line); object-fit: cover; flex-shrink: 0; }
+  .topbar .who { font-size: 13px; color: var(--muted); }
+  .topbar .who b { display: block; font-size: 15px; color: var(--ink); font-weight: 600; }
+
+  .wrap { max-width: 520px; margin: 0 auto; padding: 20px; }
+  .section-title { font-size: 14px; font-weight: 700; color: var(--muted); margin: 8px 0 12px; letter-spacing: 0.02em; }
+  .section-title:not(:first-child) { margin-top: 28px; }
+
+  .qcard {
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    padding: 18px; margin-bottom: 12px; box-shadow: var(--shadow); position: relative; overflow: hidden;
+  }
+  .qcard.done, .qcard.rejected { opacity: 0.72; }
+  .qcard .accent { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+  .qcard.pending .accent { background: var(--amber); }
+  .qcard.confirmed .accent { background: var(--green); }
+  .qcard.arrived .accent { background: var(--blue); }
+  .qcard.done .accent { background: var(--muted); }
+  .qcard.rejected .accent { background: var(--red); }
+
+  .q-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+  .q-code { font-size: 19px; font-weight: 800; letter-spacing: 0.01em; }
+  .q-svc { font-size: 14px; color: var(--muted); margin-top: 2px; }
+  .q-badge { padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .q-badge.pending { background: var(--amber-bg); color: var(--amber); }
+  .q-badge.confirmed { background: var(--green-bg); color: var(--green); }
+  .q-badge.arrived { background: var(--blue-bg); color: var(--blue); }
+  .q-badge.done { background: var(--gray-bg); color: var(--muted); }
+  .q-badge.rejected { background: var(--red-bg); color: var(--red); }
+
+  .q-detail { display: flex; gap: 24px; }
+  .q-detail .item .k { font-size: 11px; color: var(--muted); margin-bottom: 1px; }
+  .q-detail .item .v { font-size: 15px; font-weight: 600; }
+
+  .q-hint { font-size: 13px; color: var(--muted); margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
+
+  .empty { text-align: center; padding: 70px 24px; color: var(--muted); }
+  .empty .ico { font-size: 40px; margin-bottom: 12px; opacity: 0.5; }
+  .empty .book-btn {
+    display: inline-block; margin-top: 18px; background: var(--brand); color: #fff;
+    text-decoration: none; padding: 13px 28px; border-radius: 12px; font-weight: 700; font-size: 15px;
+  }
+
+  .loading, .gate { text-align: center; padding: 80px 20px; color: var(--muted); }
+  .spinner { width: 32px; height: 32px; border: 3px solid var(--line); border-top-color: var(--brand); border-radius: 50%; margin: 0 auto 16px; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .testbadge { background: #fff4e5; color: #9a6712; font-size: 12px; text-align: center; padding: 7px; font-weight: 600; }
+  .refresh-btn {
+    display: block; margin: 4px auto 0; background: none; border: 1.5px solid var(--line);
+    color: var(--muted); border-radius: 10px; padding: 10px 20px; font-size: 14px; font-family: inherit; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<div id="testbadge" class="testbadge" style="display:none">โหมดทดสอบ (เปิดนอก LINE)</div>
+<div id="app">
+  <div class="loading"><div class="spinner"></div>กำลังโหลดคิวของคุณ…</div>
+</div>
+
+<script>
+// ============================================
+const LIFF_ID = "2010388192-cr1IKpD8";
+const SUPABASE_URL = "https://yknjoaaaazyoefhqztyi.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlrbmpvYWFhYXp5b2VmaHF6dHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzNjcyNDcsImV4cCI6MjA5Njk0MzI0N30.pnDPTkJnztVoqv5mx-t40lzRv-MvevnWwz7jdebqE4E";
+const BOOKING_URL = "https://liff.line.me/2010388192-cr1IKpD8";  // ลิงก์หน้าจอง (LIFF)
+// ============================================
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let state = { user: null };
+
+const STATUS_LABEL = { pending:"รอยืนยัน", confirmed:"ยืนยันแล้ว", arrived:"มาแล้ว", done:"เสร็จสิ้น", rejected:"ยกเลิก" };
+const STATUS_HINT = {
+  pending: "รอร้านยืนยันคิว จะแจ้งเตือนผ่าน LINE",
+  confirmed: "ยืนยันแล้ว แล้วเจอกันตามเวลานัด",
+  arrived: "เช็คอินแล้ว กำลังรับบริการ",
+  done: "ใช้บริการเรียบร้อยแล้ว ขอบคุณค่ะ",
+  rejected: "คิวนี้ถูกยกเลิก จองใหม่ได้เลย",
+};
+const ACTIVE = ["pending","confirmed","arrived"];
+
+async function init() {
+  try {
+    await liff.init({ liffId: LIFF_ID });
+    if (!liff.isLoggedIn()) { liff.login(); return; }
+    const p = await liff.getProfile();
+    state.user = { id: p.userId, name: p.displayName, pic: p.pictureUrl };
+  } catch (e) {
+    state.testMode = true;
+    state.user = { id: "TEST_" + Math.random().toString(36).slice(2,8), name: "ผู้ใช้ทดสอบ", pic: "" };
+    document.getElementById("testbadge").style.display = "block";
+  }
+  await loadAndRender();
+}
+
+async function loadAndRender() {
+  try {
+    const { data, error } = await sb.from("bookings")
+      .select("*, services(name)")
+      .eq("line_user_id", state.user.id)
+      .order("booking_date", { ascending: false })
+      .order("slot_time", { ascending: false });
+    if (error) throw new Error(error.message);
+    render(data || []);
+  } catch (e) {
+    document.getElementById("app").innerHTML = `<div class="wrap"><div class="empty" style="color:var(--red)">โหลดข้อมูลไม่สำเร็จ<br><small>${e.message}</small></div></div>`;
+  }
+}
+
+function fmtDate(d) {
+  return new Date(d + "T00:00:00").toLocaleDateString("th-TH", { weekday:"short", day:"numeric", month:"short" });
+}
+
+function card(b) {
+  const t = b.slot_time.slice(0,5);
+  const svc = b.services ? b.services.name : "บริการ";
+  return `
+    <div class="qcard ${b.status}">
+      <div class="accent"></div>
+      <div class="q-top">
+        <div>
+          <div class="q-code">#${b.booking_code}</div>
+          <div class="q-svc">${svc} · ฿${(b.price_at_booking||0).toLocaleString()}</div>
+        </div>
+        <span class="q-badge ${b.status}">${STATUS_LABEL[b.status]}</span>
+      </div>
+      <div class="q-detail">
+        <div class="item"><div class="k">วันที่</div><div class="v">${fmtDate(b.booking_date)}</div></div>
+        <div class="item"><div class="k">เวลา</div><div class="v">${t} น.</div></div>
+      </div>
+      <div class="q-hint">${STATUS_HINT[b.status]||""}</div>
+    </div>`;
+}
+
+function render(bookings) {
+  const u = state.user;
+  const active = bookings.filter(b => ACTIVE.includes(b.status));
+  const past = bookings.filter(b => !ACTIVE.includes(b.status));
+
+  let html = `
+    <div class="topbar">
+      ${u.pic ? `<img class="avatar" src="${u.pic}">` : `<div class="avatar"></div>`}
+      <div class="who">คิวของ<b>${u.name}</b></div>
+    </div>
+    <div class="wrap">`;
+
+  if (bookings.length === 0) {
+    html += `
+      <div class="empty">
+        <div class="ico">📅</div>
+        ยังไม่มีการจอง
+        <br><a class="book-btn" href="${BOOKING_URL}">จองคิวเลย</a>
+      </div>`;
+  } else {
+    if (active.length) {
+      html += `<div class="section-title">คิวที่กำลังดำเนินการ</div>`;
+      html += active.map(card).join("");
+    }
+    if (past.length) {
+      html += `<div class="section-title">ประวัติการจอง</div>`;
+      html += past.map(card).join("");
+    }
+    html += `<button class="refresh-btn" onclick="loadAndRender()">รีเฟรช</button>`;
+  }
+  html += `</div>`;
+  document.getElementById("app").innerHTML = html;
+}
+
+init();
+</script>
+</body>
+</html>
