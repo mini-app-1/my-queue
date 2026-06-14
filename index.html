@@ -325,19 +325,22 @@ async function submitBooking() {
     return;
   }
 
-  // เฟส 4: แจ้งเตือนกลุ่มแอดมินว่ามีจองใหม่ (ไม่ขัดการแสดงผลถ้าล้มเหลว)
-  try {
-    fetch(`${SUPABASE_URL}/functions/v1/rapid-worker`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify({ bookingId: data.id, action: "new_booking" }),
-    });
-  } catch (e) { console.error("แจ้งกลุ่มล้มเหลว:", e); }
-
+  // แสดง card สำเร็จทันที (ไม่ให้ push ที่อาจ fail มาขัด)
   showSuccess(code, svc, name);
+
+  // เฟส 4: แจ้งเตือนกลุ่มแอดมินว่ามีจองใหม่ (ทำเบื้องหลัง ถ้า fail ไม่กระทบ card)
+  if (data && data.id) {
+    try {
+      fetch(`${SUPABASE_URL}/functions/v1/rapid-worker`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ bookingId: data.id, action: "new_booking" }),
+      }).catch(e => console.error("แจ้งกลุ่มล้มเหลว:", e));
+    } catch (e) { console.error("แจ้งกลุ่มล้มเหลว:", e); }
+  }
 }
 
 function showErr(msg) {
