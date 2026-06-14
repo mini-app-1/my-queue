@@ -2,370 +2,193 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>จัดการคิว · MyQueue Admin</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>จัดการคิว</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
-    --bg: #14130f;
-    --surface: #1e1c17;
-    --surface2: #26241e;
-    --ink: #f0ede4;
-    --muted: #9a978c;
-    --line: #34312a;
-    --brand: #06c755;
-    --amber: #e0a106;
-    --red: #e5614b;
-    --blue: #5b9bd5;
-    --green: #4caf72;
-    --shadow: 0 4px 16px rgba(0,0,0,0.3);
+    --bg: #f2f2f7; --card: #ffffff; --ink: #000000; --muted: #8e8e93; --sep: #e5e5ea;
+    --brand: #06c755; --brand-press: #05b34c; --sel-bg: #e8faf0; --radius: 14px;
+    --amber: #b8860b; --blue: #007aff; --red: #d70015;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  body {
-    font-family: -apple-system, "Helvetica Neue", "Sukhumvit Set", "Noto Sans Thai", sans-serif;
-    background: var(--bg); color: var(--ink); line-height: 1.5;
-    -webkit-font-smoothing: antialiased; padding-bottom: 40px;
-  }
-  .wrap { max-width: 880px; margin: 0 auto; padding: 20px; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Sukhumvit Set", "Noto Sans Thai", sans-serif; background: var(--bg); color: var(--ink); line-height: 1.4; -webkit-font-smoothing: antialiased; letter-spacing: -0.01em; padding-bottom: 40px; }
 
   /* gate */
-  .gate { max-width: 360px; margin: 80px auto; padding: 0 24px; text-align: center; }
-  .gate h1 { font-size: 22px; margin-bottom: 8px; }
-  .gate p { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
-  .gate input {
-    width: 100%; background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px;
-    padding: 15px 16px; font-size: 16px; color: var(--ink); font-family: inherit; margin-bottom: 12px;
-  }
-  .gate input:focus { outline: none; border-color: var(--brand); }
-  .gate .err { color: var(--red); font-size: 13px; margin-bottom: 12px; min-height: 18px; }
+  .gate { max-width: 380px; margin: 0 auto; padding: 90px 24px 0; text-align: center; }
+  .gate .lock { width: 64px; height: 64px; border-radius: 50%; background: var(--card); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; }
+  .gate .lock svg { width: 30px; height: 30px; stroke: var(--brand); }
+  .gate h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+  .gate p { color: var(--muted); font-size: 15px; margin: 6px 0 26px; }
+  .gate input { width: 100%; background: var(--card); border: none; border-radius: var(--radius); padding: 16px; font-size: 17px; font-family: inherit; text-align: center; margin-bottom: 10px; outline: none; }
+  .gate .gerr { color: var(--red); font-size: 14px; min-height: 20px; margin-bottom: 10px; }
 
-  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; padding-top: 8px; }
-  header h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; }
-  .date-label { color: var(--muted); font-size: 14px; margin-bottom: 20px; }
+  .nav { background: rgba(242,242,247,0.82); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); position: sticky; top: 0; z-index: 20; padding: 10px 16px; padding-top: calc(10px + env(safe-area-inset-top)); border-bottom: 0.5px solid var(--sep); }
+  .nav h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.022em; }
+  .scroll { max-width: 560px; margin: 0 auto; padding: 12px 16px; }
 
-  .tabs { display: flex; gap: 4px; background: var(--surface); padding: 4px; border-radius: 12px; margin-bottom: 22px; }
-  .tab {
-    flex: 1; text-align: center; padding: 10px; border-radius: 9px; font-size: 14px; font-weight: 600;
-    color: var(--muted); cursor: pointer; transition: all 0.15s; border: none; background: none; font-family: inherit;
-  }
-  .tab.active { background: var(--surface2); color: var(--ink); box-shadow: var(--shadow); }
+  /* segmented tabs iOS */
+  .seg { display: flex; background: #e3e3e8; border-radius: 9px; padding: 2px; margin-bottom: 18px; }
+  .seg button { flex: 1; border: none; background: none; padding: 8px; font-size: 14px; font-weight: 600; font-family: inherit; color: var(--ink); border-radius: 7px; cursor: pointer; transition: all 0.15s; }
+  .seg button.on { background: var(--card); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
 
-  .filterbar { display: flex; gap: 8px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
-  .filterbar input[type=date] {
-    background: var(--surface); border: 1.5px solid var(--line); border-radius: 10px;
-    padding: 9px 12px; color: var(--ink); font-family: inherit; font-size: 14px;
-  }
-  .chip {
-    padding: 7px 13px; border-radius: 999px; font-size: 13px; font-weight: 600; cursor: pointer;
-    background: var(--surface); border: 1.5px solid var(--line); color: var(--muted); transition: all 0.15s;
-  }
-  .chip.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  /* date + filter */
+  .toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  input[type=date] { border: none; background: var(--card); border-radius: 10px; padding: 9px 12px; font-size: 15px; font-family: inherit; color: var(--ink); font-weight: 500; }
+  .chips { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 14px; -webkit-overflow-scrolling: touch; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { white-space: nowrap; padding: 7px 14px; border-radius: 100px; font-size: 13px; font-weight: 600; background: var(--card); color: var(--muted); border: none; cursor: pointer; flex-shrink: 0; }
+  .chip.on { background: var(--ink); color: #fff; }
 
-  .card {
-    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
-    padding: 16px; margin-bottom: 12px; box-shadow: var(--shadow);
-  }
-  .bk-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
-  .bk-code { font-size: 17px; font-weight: 800; letter-spacing: 0.01em; }
-  .bk-time { font-size: 13px; color: var(--muted); margin-top: 2px; }
-  .badge { padding: 4px 11px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
-  .badge.pending { background: rgba(224,161,6,0.15); color: var(--amber); }
-  .badge.confirmed { background: rgba(76,175,114,0.16); color: var(--green); }
-  .badge.rejected { background: rgba(229,97,75,0.15); color: var(--red); }
-  .badge.arrived { background: rgba(91,155,213,0.16); color: var(--blue); }
-  .badge.done { background: rgba(154,151,140,0.18); color: var(--muted); }
+  /* booking card */
+  .bcard { background: var(--card); border-radius: var(--radius); padding: 16px; margin-bottom: 10px; position: relative; overflow: hidden; }
+  .bcard .strip { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .bcard.pending .strip { background: var(--amber); }
+  .bcard.confirmed .strip { background: var(--brand); }
+  .bcard.arrived .strip { background: var(--blue); }
+  .bcard.done .strip { background: var(--muted); }
+  .bcard.rejected .strip { background: var(--red); }
+  .bcard.done, .bcard.rejected { opacity: 0.6; }
+  .b-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+  .b-code { font-size: 18px; font-weight: 700; }
+  .b-meta { font-size: 14px; color: var(--muted); margin-top: 1px; }
+  .badge { padding: 4px 11px; border-radius: 100px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .badge.pending { background: #fdf4e3; color: var(--amber); }
+  .badge.confirmed { background: var(--sel-bg); color: #04a548; }
+  .badge.arrived { background: #e5f1ff; color: var(--blue); }
+  .badge.done { background: #efeff0; color: var(--muted); }
+  .badge.rejected { background: #ffeceb; color: var(--red); }
+  .b-info { display: flex; gap: 28px; margin-bottom: 14px; }
+  .b-info .k { font-size: 11px; color: var(--muted); }
+  .b-info .v { font-size: 15px; font-weight: 600; }
+  .acts { display: flex; gap: 8px; }
+  .act { flex: 1; padding: 12px; border-radius: 10px; font-size: 15px; font-weight: 600; border: none; cursor: pointer; font-family: inherit; transition: all 0.12s; }
+  .act:active { transform: scale(0.97); }
+  .act-go { background: var(--brand); color: #fff; }
+  .act-blue { background: var(--blue); color: #fff; }
+  .act-dark { background: var(--ink); color: #fff; }
+  .act-cancel { background: #f2f2f7; color: var(--red); }
+  .done-tag { text-align: center; padding: 11px; font-size: 14px; font-weight: 600; color: var(--muted); width: 100%; }
 
-  .bk-info { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; font-size: 14px; margin-bottom: 14px; }
-  .bk-info .k { color: var(--muted); font-size: 12px; }
-  .bk-info .v { font-weight: 600; }
-
-  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
-  .act {
-    flex: 1; min-width: 90px; padding: 11px; border-radius: 10px; font-size: 14px; font-weight: 700;
-    border: none; cursor: pointer; font-family: inherit; transition: all 0.15s;
-  }
-  .act:active { transform: scale(0.98); }
-  .act-confirm { background: var(--green); color: #fff; }
-  .act-reject { background: var(--surface2); color: var(--red); border: 1.5px solid rgba(229,97,75,0.3); }
-  .act-arrived { background: var(--blue); color: #fff; }
-  .act-done { background: var(--ink); color: var(--bg); }
-  .done-label { text-align: center; padding: 11px; font-size: 14px; font-weight: 700; color: var(--muted); width: 100%; }
-  .act:disabled { opacity: 0.4; cursor: default; }
-
-  .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
-
-  /* manage services / slots */
-  .mgmt-item {
-    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
-    padding: 14px 16px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  }
-  .mgmt-item .mi-name { font-weight: 600; font-size: 15px; }
-  .mgmt-item .mi-sub { font-size: 13px; color: var(--muted); }
-  .mgmt-item.off { opacity: 0.5; }
-  .toggle {
-    width: 46px; height: 27px; border-radius: 999px; background: var(--line); position: relative;
-    cursor: pointer; transition: all 0.2s; border: none; flex-shrink: 0;
-  }
+  /* manage list */
+  .mlabel { font-size: 13px; color: var(--muted); padding: 16px 4px 8px; }
+  .inset { background: var(--card); border-radius: var(--radius); overflow: hidden; }
+  .mrow { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; position: relative; }
+  .mrow + .mrow::before { content: ""; position: absolute; top: 0; left: 16px; right: 0; height: 0.5px; background: var(--sep); }
+  .mrow.off .mn { color: var(--muted); }
+  .mn { font-size: 17px; font-weight: 500; }
+  .ms { font-size: 13px; color: var(--muted); }
+  .toggle { width: 51px; height: 31px; border-radius: 100px; background: #e3e3e8; position: relative; cursor: pointer; transition: all 0.25s; border: none; flex-shrink: 0; }
   .toggle.on { background: var(--brand); }
-  .toggle::after {
-    content: ""; position: absolute; width: 21px; height: 21px; border-radius: 50%; background: #fff;
-    top: 3px; left: 3px; transition: all 0.2s;
-  }
+  .toggle::after { content: ""; position: absolute; width: 27px; height: 27px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: all 0.25s; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
   .toggle.on::after { left: 22px; }
-  .add-row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
-  .add-row input {
-    background: var(--surface); border: 1.5px solid var(--line); border-radius: 10px;
-    padding: 11px 13px; color: var(--ink); font-family: inherit; font-size: 14px;
-  }
-  .btn-add {
-    background: var(--brand); color: #fff; border: none; border-radius: 10px; padding: 11px 20px;
-    font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit;
-  }
-  .btn-add:active { transform: scale(0.98); }
-  .sec-title { font-size: 13px; color: var(--muted); font-weight: 600; margin: 22px 0 12px; text-transform: uppercase; letter-spacing: 0.05em; }
-  .loading { text-align: center; padding: 60px; color: var(--muted); }
-  .spinner { width: 28px; height: 28px; border: 3px solid var(--line); border-top-color: var(--brand); border-radius: 50%; margin: 0 auto 14px; animation: spin 0.7s linear infinite; }
+  .addbar { display: flex; gap: 8px; margin-top: 12px; }
+  .addbar input { flex: 1; background: var(--card); border: none; border-radius: 10px; padding: 13px 14px; font-size: 16px; font-family: inherit; outline: none; }
+  .addbar input.sm { flex: 0 0 100px; }
+  .addbtn { background: var(--brand); color: #fff; border: none; border-radius: 10px; padding: 0 22px; font-size: 15px; font-weight: 600; font-family: inherit; cursor: pointer; }
+
+  .empty { text-align: center; padding: 70px 24px; color: var(--muted); }
+  .center { text-align: center; padding: 80px; color: var(--muted); }
+  .spinner { width: 28px; height: 28px; border: 2.5px solid var(--sep); border-top-color: var(--brand); border-radius: 50%; margin: 0 auto 14px; animation: spin 0.7s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
-<div id="root"><div class="loading"><div class="spinner"></div>กำลังโหลด…</div></div>
-
+<div id="root"><div class="center"><div class="spinner"></div>กำลังโหลด</div></div>
 <script>
-// ============================================
-// CONFIG
-// ============================================
 const SUPABASE_URL = "https://yknjoaaaazyoefhqztyi.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlrbmpvYWFhYXp5b2VmaHF6dHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzNjcyNDcsImV4cCI6MjA5Njk0MzI0N30.pnDPTkJnztVoqv5mx-t40lzRv-MvevnWwz7jdebqE4E";
-const ADMIN_PASSWORD = "myqueue2024";   // <-- เปลี่ยนรหัสนี้เป็นของคุณเอง
-// ============================================
-
+const ADMIN_PASSWORD = "myqueue2024";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-let view = { tab: "bookings", date: todayStr(), filter: "all", bookings: [], services: [], slots: [] };
+let view = { tab:"bookings", date: todayStr(), filter:"all", bookings:[], services:[], slots:[] };
+function todayStr(){ const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); }
+const LBL = { pending:"รอยืนยัน", confirmed:"ยืนยันแล้ว", rejected:"ปฏิเสธ", arrived:"ลูกค้ามาแล้ว", done:"เสร็จสิ้น" };
 
-function todayStr() {
-  const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toISOString().slice(0, 10);
-}
-
-// ---------- AUTH GATE ----------
-function showGate(msg) {
+function showGate(msg){
   document.getElementById("root").innerHTML = `
     <div class="gate">
-      <h1>จัดการคิว</h1>
-      <p>ใส่รหัสผ่านสำหรับแอดมิน</p>
+      <div class="lock"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+      <h1>จัดการคิว</h1><p>สำหรับแอดมินร้าน</p>
       <input type="password" id="pw" placeholder="รหัสผ่าน" onkeydown="if(event.key==='Enter')tryLogin()">
-      <div class="err" id="gerr">${msg||""}</div>
-      <button class="btn-add" style="width:100%" onclick="tryLogin()">เข้าสู่ระบบ</button>
+      <div class="gerr" id="gerr">${msg||""}</div>
+      <button class="addbtn" style="width:100%;padding:16px" onclick="tryLogin()">เข้าสู่ระบบ</button>
     </div>`;
-  setTimeout(()=>document.getElementById("pw")?.focus(), 100);
+  setTimeout(()=>document.getElementById("pw")?.focus(),100);
 }
-function tryLogin() {
-  const pw = document.getElementById("pw").value;
-  if (pw === ADMIN_PASSWORD) { sessionStorage.setItem("admin_ok","1"); boot(); }
-  else document.getElementById("gerr").textContent = "รหัสผ่านไม่ถูกต้อง";
-}
+function tryLogin(){ const pw=document.getElementById("pw").value; if(pw===ADMIN_PASSWORD){sessionStorage.setItem("admin_ok","1");boot();}else document.getElementById("gerr").textContent="รหัสผ่านไม่ถูกต้อง"; }
 
-// ---------- DATA ----------
-async function loadAll() {
-  const [bk, svc, slots] = await Promise.all([
+async function loadAll(){
+  const [bk,svc,slots] = await Promise.all([
     sb.from("bookings").select("*, services(name)").eq("booking_date", view.date).order("slot_time"),
     sb.from("services").select("*").order("sort_order"),
     sb.from("time_slots").select("*").order("slot_time"),
   ]);
-  if (bk.error) throw new Error(bk.error.message);
-  view.bookings = bk.data || [];
-  view.services = svc.data || [];
-  view.slots = slots.data || [];
+  if(bk.error) throw new Error(bk.error.message);
+  view.bookings=bk.data||[]; view.services=svc.data||[]; view.slots=slots.data||[];
 }
-
-async function setStatus(id, status) {
-  await sb.from("bookings").update({ status }).eq("id", id);
-  // เฟส 4: ยิง push หาลูกค้าเมื่อยืนยันหรือปฏิเสธ
-  if (status === "confirmed" || status === "rejected") {
-    try {
-      await fetch(`${SUPABASE_URL}/functions/v1/rapid-worker`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({ bookingId: id, action: status }),
-      });
-    } catch (e) {
-      // ถ้า push ล้มเหลว ไม่ขัดการเปลี่ยนสถานะ — แค่ log ไว้
-      console.error("push ล้มเหลว:", e);
-    }
+async function setStatus(id,status){
+  await sb.from("bookings").update({status}).eq("id",id);
+  if(status==="confirmed"||status==="rejected"){
+    try{ await fetch(`${SUPABASE_URL}/functions/v1/rapid-worker`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${SUPABASE_ANON_KEY}`},body:JSON.stringify({bookingId:id,action:status})}); }catch(e){console.error(e);}
   }
   await loadAll(); render();
 }
+async function toggleService(id,cur){ await sb.from("services").update({is_active:!cur}).eq("id",id); await loadAll(); render(); }
+async function addService(){ const n=document.getElementById("svc-name").value.trim(); const p=parseInt(document.getElementById("svc-price").value); if(!n||!p)return; const mo=Math.max(0,...view.services.map(s=>s.sort_order||0)); await sb.from("services").insert({name:n,price:p,sort_order:mo+1}); await loadAll(); render(); }
+async function toggleSlot(id,cur){ await sb.from("time_slots").update({is_active:!cur}).eq("id",id); await loadAll(); render(); }
+async function addSlot(){ const t=document.getElementById("slot-time").value; if(!t)return; await sb.from("time_slots").insert({slot_time:t}); await loadAll(); render(); }
 
-async function toggleService(id, cur) {
-  await sb.from("services").update({ is_active: !cur }).eq("id", id);
-  await loadAll(); render();
-}
-async function addService() {
-  const name = document.getElementById("svc-name").value.trim();
-  const price = parseInt(document.getElementById("svc-price").value);
-  if (!name || !price) return;
-  const maxOrder = Math.max(0, ...view.services.map(s=>s.sort_order||0));
-  await sb.from("services").insert({ name, price, sort_order: maxOrder+1 });
-  await loadAll(); render();
-}
-async function toggleSlot(id, cur) {
-  await sb.from("time_slots").update({ is_active: !cur }).eq("id", id);
-  await loadAll(); render();
-}
-async function addSlot() {
-  const t = document.getElementById("slot-time").value;
-  if (!t) return;
-  await sb.from("time_slots").insert({ slot_time: t });
-  await loadAll(); render();
-}
-
-// ---------- RENDER ----------
-const STATUS_LABEL = { pending:"รอยืนยัน", confirmed:"ยืนยันแล้ว", rejected:"ปฏิเสธ", arrived:"ลูกค้ามาแล้ว", done:"เสร็จสิ้น" };
-
-function render() {
-  const tabs = `
-    <div class="tabs">
-      <button class="tab ${view.tab==='bookings'?'active':''}" onclick="switchTab('bookings')">การจอง</button>
-      <button class="tab ${view.tab==='services'?'active':''}" onclick="switchTab('services')">บริการ</button>
-      <button class="tab ${view.tab==='slots'?'active':''}" onclick="switchTab('slots')">เวลา</button>
-    </div>`;
-
-  let body = "";
-  if (view.tab === "bookings") body = renderBookings();
-  else if (view.tab === "services") body = renderServices();
-  else body = renderSlots();
-
-  document.getElementById("root").innerHTML = `
-    <div class="wrap">
-      <header><h1>จัดการคิว</h1></header>
-      <div class="date-label">ระบบจองคิว MyQueue</div>
-      ${tabs}
-      ${body}
-    </div>`;
-}
-
-function switchTab(t) { view.tab = t; render(); }
-async function changeDate(v) { view.date = v; await loadAll(); render(); }
-function setFilter(f) { view.filter = f; render(); }
-
-function renderActions(b) {
-  const id = b.id;
-  switch (b.status) {
-    case "pending":
-      return `
-        <button class="act act-confirm" onclick="setStatus('${id}','confirmed')">ยืนยัน</button>
-        <button class="act act-reject" onclick="setStatus('${id}','rejected')">ปฏิเสธ</button>`;
-    case "confirmed":
-      return `
-        <button class="act act-arrived" onclick="setStatus('${id}','arrived')">ลูกค้ามาแล้ว</button>
-        <button class="act act-reject" onclick="setStatus('${id}','rejected')">ยกเลิก</button>`;
-    case "arrived":
-      return `
-        <button class="act act-done" onclick="setStatus('${id}','done')">เสร็จสิ้น</button>
-        <button class="act act-reject" onclick="setStatus('${id}','rejected')">ยกเลิก</button>`;
-    case "done":
-      return `<div class="done-label">✓ เสร็จสิ้นแล้ว</div>`;
-    case "rejected":
-      return `<div class="done-label" style="color:var(--red)">ยกเลิก/ปฏิเสธแล้ว</div>`;
-    default:
-      return "";
+function renderActions(b){
+  const id=b.id;
+  switch(b.status){
+    case "pending": return `<button class="act act-go" onclick="setStatus('${id}','confirmed')">ยืนยัน</button><button class="act act-cancel" onclick="setStatus('${id}','rejected')">ปฏิเสธ</button>`;
+    case "confirmed": return `<button class="act act-blue" onclick="setStatus('${id}','arrived')">ลูกค้ามาแล้ว</button><button class="act act-cancel" onclick="setStatus('${id}','rejected')">ยกเลิก</button>`;
+    case "arrived": return `<button class="act act-dark" onclick="setStatus('${id}','done')">เสร็จสิ้น</button><button class="act act-cancel" onclick="setStatus('${id}','rejected')">ยกเลิก</button>`;
+    case "done": return `<div class="done-tag">✓ เสร็จสิ้นแล้ว</div>`;
+    case "rejected": return `<div class="done-tag" style="color:var(--red)">ยกเลิก/ปฏิเสธแล้ว</div>`;
+    default: return "";
   }
 }
-
-function renderBookings() {
-  const counts = { all: view.bookings.length };
-  ["pending","confirmed","arrived","done","rejected"].forEach(s => counts[s] = view.bookings.filter(b=>b.status===s).length);
-  let list = view.bookings;
-  if (view.filter !== "all") list = list.filter(b => b.status === view.filter);
-
-  const chips = ["all","pending","confirmed","arrived","done","rejected"].map(f => {
-    const lbl = f==="all" ? "ทั้งหมด" : STATUS_LABEL[f];
-    return `<button class="chip ${view.filter===f?'active':''}" onclick="setFilter('${f}')">${lbl} ${counts[f]}</button>`;
+function render(){
+  const seg = `<div class="seg">
+    <button class="${view.tab==='bookings'?'on':''}" onclick="switchTab('bookings')">การจอง</button>
+    <button class="${view.tab==='services'?'on':''}" onclick="switchTab('services')">บริการ</button>
+    <button class="${view.tab==='slots'?'on':''}" onclick="switchTab('slots')">เวลา</button></div>`;
+  let body = view.tab==="bookings"?renderBookings():view.tab==="services"?renderServices():renderSlots();
+  document.getElementById("root").innerHTML = `<div class="nav"><h1>จัดการคิว</h1></div><div class="scroll">${seg}${body}</div>`;
+}
+function switchTab(t){ view.tab=t; render(); }
+async function changeDate(v){ view.date=v; await loadAll(); render(); }
+function setFilter(f){ view.filter=f; render(); }
+function renderBookings(){
+  const counts={all:view.bookings.length};
+  ["pending","confirmed","arrived","done","rejected"].forEach(s=>counts[s]=view.bookings.filter(b=>b.status===s).length);
+  let list=view.bookings; if(view.filter!=="all") list=list.filter(b=>b.status===view.filter);
+  const chips=["all","pending","confirmed","arrived","done","rejected"].map(f=>{
+    const l=f==="all"?"ทั้งหมด":LBL[f]; return `<button class="chip ${view.filter===f?'on':''}" onclick="setFilter('${f}')">${l} ${counts[f]}</button>`;
   }).join("");
-
-  const cards = list.map(b => {
-    const t = b.slot_time.slice(0,5);
-    const svcName = b.services ? b.services.name : "—";
-    return `
-      <div class="card">
-        <div class="bk-top">
-          <div>
-            <div class="bk-code">#${b.booking_code}</div>
-            <div class="bk-time">${t} น. · ${svcName} · ฿${(b.price_at_booking||0).toLocaleString()}</div>
-          </div>
-          <span class="badge ${b.status}">${STATUS_LABEL[b.status]}</span>
-        </div>
-        <div class="bk-info">
-          <div><div class="k">ลูกค้า</div><div class="v">${b.customer_name}</div></div>
-          <div><div class="k">ติดต่อ</div><div class="v">${b.contact||"—"}</div></div>
-        </div>
-        <div class="actions">${renderActions(b)}</div>
-      </div>`;
+  const cards=list.map(b=>{
+    const t=b.slot_time.slice(0,5); const svc=b.services?b.services.name:"—";
+    return `<div class="bcard ${b.status}"><div class="strip"></div>
+      <div class="b-top"><div><div class="b-code">#${b.booking_code}</div><div class="b-meta">${t} น. · ${svc} · ฿${(b.price_at_booking||0).toLocaleString()}</div></div><span class="badge ${b.status}">${LBL[b.status]}</span></div>
+      <div class="b-info"><div><div class="k">ลูกค้า</div><div class="v">${b.customer_name}</div></div><div><div class="k">ติดต่อ</div><div class="v">${b.contact||"—"}</div></div></div>
+      <div class="acts">${renderActions(b)}</div></div>`;
   }).join("");
-
-  return `
-    <div class="filterbar">
-      <input type="date" value="${view.date}" onchange="changeDate(this.value)">
-    </div>
-    <div class="filterbar">${chips}</div>
-    ${cards || '<div class="empty">ยังไม่มีการจองในวันนี้</div>'}`;
+  return `<div class="toolbar"><input type="date" value="${view.date}" onchange="changeDate(this.value)"></div><div class="chips">${chips}</div>${cards||'<div class="empty">ยังไม่มีการจองในวันนี้</div>'}`;
 }
-
-function renderServices() {
-  const items = view.services.map(s => `
-    <div class="mgmt-item ${s.is_active?'':'off'}">
-      <div>
-        <div class="mi-name">${s.name}</div>
-        <div class="mi-sub">฿${s.price.toLocaleString()}</div>
-      </div>
-      <button class="toggle ${s.is_active?'on':''}" onclick="toggleService('${s.id}',${s.is_active})"></button>
-    </div>`).join("");
-  return `
-    <div class="sec-title">บริการทั้งหมด (ปิด/เปิดได้)</div>
-    ${items || '<div class="empty">ยังไม่มีบริการ</div>'}
-    <div class="sec-title">เพิ่มบริการใหม่</div>
-    <div class="add-row">
-      <input type="text" id="svc-name" placeholder="ชื่อบริการ เช่น สระ+ตัด" style="flex:2">
-      <input type="number" id="svc-price" placeholder="ราคา" style="flex:1">
-      <button class="btn-add" onclick="addService()">เพิ่ม</button>
-    </div>`;
+function renderServices(){
+  const items=view.services.map(s=>`<div class="mrow ${s.is_active?'':'off'}"><div><div class="mn">${s.name}</div><div class="ms">฿${s.price.toLocaleString()}</div></div><button class="toggle ${s.is_active?'on':''}" onclick="toggleService('${s.id}',${s.is_active})"></button></div>`).join("");
+  return `<div class="mlabel">บริการทั้งหมด</div><div class="inset">${items||'<div class="empty">ยังไม่มีบริการ</div>'}</div>
+    <div class="mlabel">เพิ่มบริการใหม่</div><div class="addbar"><input type="text" id="svc-name" placeholder="ชื่อ เช่น สระ+ตัด"><input type="number" id="svc-price" class="sm" placeholder="ราคา"><button class="addbtn" onclick="addService()">เพิ่ม</button></div>`;
 }
-
-function renderSlots() {
-  const items = view.slots.map(s => {
-    const t = s.slot_time.slice(0,5);
-    return `
-      <div class="mgmt-item ${s.is_active?'':'off'}">
-        <div class="mi-name">${t} น.</div>
-        <button class="toggle ${s.is_active?'on':''}" onclick="toggleSlot('${s.id}',${s.is_active})"></button>
-      </div>`;
-  }).join("");
-  return `
-    <div class="sec-title">ช่วงเวลาทั้งหมด (ปิด/เปิดได้)</div>
-    ${items || '<div class="empty">ยังไม่มีช่วงเวลา</div>'}
-    <div class="sec-title">เพิ่มช่วงเวลาใหม่</div>
-    <div class="add-row">
-      <input type="time" id="slot-time" style="flex:1">
-      <button class="btn-add" onclick="addSlot()">เพิ่ม</button>
-    </div>`;
+function renderSlots(){
+  const items=view.slots.map(s=>{const t=s.slot_time.slice(0,5);return `<div class="mrow ${s.is_active?'':'off'}"><div class="mn">${t} น.</div><button class="toggle ${s.is_active?'on':''}" onclick="toggleSlot('${s.id}',${s.is_active})"></button></div>`;}).join("");
+  return `<div class="mlabel">ช่วงเวลาทั้งหมด</div><div class="inset">${items||'<div class="empty">ยังไม่มีช่วงเวลา</div>'}</div>
+    <div class="mlabel">เพิ่มช่วงเวลาใหม่</div><div class="addbar"><input type="time" id="slot-time"><button class="addbtn" onclick="addSlot()">เพิ่ม</button></div>`;
 }
-
-// ---------- BOOT ----------
-async function boot() {
-  try {
-    await loadAll();
-    render();
-  } catch (e) {
-    document.getElementById("root").innerHTML = `<div class="wrap"><div class="empty" style="color:var(--red)">โหลดข้อมูลไม่สำเร็จ: ${e.message}<br><br>เช็ก anon key และ RLS</div></div>`;
-  }
-}
-
-if (sessionStorage.getItem("admin_ok") === "1") boot();
-else showGate();
+async function boot(){ try{ await loadAll(); render(); }catch(e){ document.getElementById("root").innerHTML=`<div class="center" style="color:var(--red)">โหลดไม่สำเร็จ: ${e.message}</div>`; } }
+if(sessionStorage.getItem("admin_ok")==="1") boot(); else showGate();
 </script>
 </body>
 </html>
